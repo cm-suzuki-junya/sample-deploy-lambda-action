@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: '${{ env.PYTHON_VERSION }}' 
       - name: Build
-        run: pip install -r requirements.txt && python -m build
+        run: pip install -r requirements.txt
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
