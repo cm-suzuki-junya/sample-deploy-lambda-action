@@ -8,13 +8,18 @@ permissions:
 defaults:
   run:
     working-directory: "./hello_world"
+env:
+  PYTHON_VERSION: 3.13
 jobs:
   main:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '${{ env.PYTHON_VERSION }}' 
       - name: Build
         run: pip install -r requirements.txt && python -m build
 
@@ -30,4 +35,4 @@ jobs:
           function-name: my-function-name
           code-artifacts-dir: ./
           handler: app.lambda_handler
-          runtime: python3.12
+          runtime: python${{ env.PYTHON_VERSION }}
