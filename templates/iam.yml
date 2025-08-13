@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  GitHubOrg:
+    Type: String
+    Description: GitHub organization name
+    Default: "cm-suzuki-junya"
+  GithubRepoName:
+    Type: String
+    Description: GitHub repository name
+    Default: "sample-deploy-lambda-action"
+  FunctionName:
+    Type: String
+    Description: Lambda function name
+    Default: "sample-actions-deploy-function"
+  # ArtifactBucketName:
+  #   Type: String
+Resources:
+  # Lambda Execution Role
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${FunctionName}-execution-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
+
+  # GitHub Actions Role
+  GitHubActionsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${GithubRepoName}-github-actions-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Ref GitHubOIDCProvider
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+              StringLike:
+                "token.actions.githubusercontent.com:sub": !Sub "repo:${GitHubOrg}/${GithubRepoName}:ref:refs/heads/master"
+      Policies:
+        - PolicyName: LambdaDeployActionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              # Lambda operations required by aws-lambda-deploy action
+              - Effect: Allow
+                Action:
+                  - lambda:GetFunctionConfiguration
+                  - lambda:CreateFunction
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:PublishVersion
+                Resource: 
+                  - !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${FunctionName}"
+              # IAM operations for Lambda execution role
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                Resource: 
+                  - !GetAtt LambdaExecutionRole.Arn
+              # ビルドアーティファクトをS3上におく場合
+              # - Effect: Allow
+              #   Action:
+              #     - s3:ListBucket
+              #     - s3:CreateBucket
+              #     - s3:PutObject
+              #     - s3:PutBucketPublicAccessBlock
+              #     - s3:PutEncryptionConfiguration
+              #     - s3:PutBucketVersioning
+              #   Resource:
+              #     - !Sub "arn:aws:s3:::${ArtifactBucketName}"
+              #     - !Sub "arn:aws:s3:::${ArtifactBucketName/*"
+
+  # GitHub OIDC Provider
+  GitHubOIDCProvider:
+    Type: AWS::IAM::OIDCProvider
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
