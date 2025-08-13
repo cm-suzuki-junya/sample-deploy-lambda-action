@@ -37,3 +37,4 @@ jobs:
           code-artifacts-dir: ./
           handler: app.lambda_handler
           runtime: python${{ env.PYTHON_VERSION }}
+          role: ${{ secrets.LAMBDA_ROLE_ARN }}
